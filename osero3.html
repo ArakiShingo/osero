@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Othello</title>
+    <style>
+        .board {
+            display: grid;
+            grid-template-columns: repeat(8, 50px);
+            grid-template-rows: repeat(8, 50px);
+            gap: 2px;
+            background-color: #006400;
+        }
+        
+        .cell {
+            background-color: #228B22;
+        }
+        
+        #turn {
+            font-size: 18px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="board"></div>
+    <button onclick="undoMove()">–ß‚é</button>
+    <button onclick="showHint()">ƒqƒ“ƒg</button>
+    <div id="turn"></div>
+    <div id="score"></div>
+    <div id="winner"></div>
+
+    <script>
+        var boardState = [
+            ['', '', '', '', '', '', '', ''],
+            ['', '', '', '', '', '', '', ''],
+            ['', '', '', '', '', '', '', ''],
+            ['', '', '', 'W', 'B', '', '', ''],
+            ['', '', '', 'B', 'W', '', '', ''],
+            ['', '', '', '', '', '', '', ''],
+            ['', '', '', '', '', '', '', ''],
+            ['', '', '', '', '', '', '', '']
+        ];
+
+        var currentPlayer = 'B';
+        var previousBoardState = null;
+
+        function drawBoard() {
+            var board = document.querySelector('.board');
+            board.innerHTML = '';
+
+            for (var i = 0; i < 8; i++) {
+                for (var j = 0; j < 8; j++) {
+                    var cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.row = i;
+                    cell.dataset.col = j;
+
+                    if (boardState[i][j] === 'W') {
+                        cell.style.backgroundColor = 'white';
+                    } else if (boardState[i][j] === 'B') {
+                        cell.style.backgroundColor = 'black';
+                    }
+
+                    cell.addEventListener('click', handleCellClick);
+
+                    board.appendChild(cell);
+                }
+            }
+        }
+
+        function handleCellClick(event) {
+            var row = parseInt(event.target.dataset.row);
+            var col = parseInt(event.target.dataset.col);
+
+            if (isValidMove(row, col)) {
+                previousBoardState = JSON.parse(JSON.stringify(boardState));
+
+                boardState[row][col] = currentPlayer;
+                flipStones(row, col);
+                currentPlayer = currentPlayer === 'B' ? 'W' : 'B';
+
+                drawBoard();
+                updateScore();
+                updateTurn();
+
+                if (isGameOver()) {
+                    var winner = getWinner();
+                    showWinner(winner);
+                }
+            }
+        }
+
+        function undoMove() {
+            if (previousBoardState !== null) {
+                boardState = JSON.parse(JSON.stringify(previousBoardState));
+                currentPlayer = currentPlayer === 'B' ? 'W' : 'B';
+
+                drawBoard();
+                updateScore();
+                updateTurn();
+
+                previousBoardState = null;
+            }
+        }
+
+        function showHint() {
+            var hints = getValidMoves();
+            highlightCells(hints);
+        }
+
+        function isValidMove(row, col) {
+            if (boardState[row][col] !== '') {
+                return false;
+            }
+
+            var directions = [
+                [-1, -1], [-1, 0], [-1, 1],
+                [0, -1],           [0, 1],
+                [1, -1],  [1, 0],  [1, 1]
+            ];
+
+            for (var i = 0; i < directions.length; i++) {
+                var dx = directions[i][0];
+                var dy = directions[i][1];
+
+                var x = row + dx;
+                var y = col + dy;
+
+                if (isOnBoard(x, y) && boardState[x][y] !== currentPlayer && boardState[x][y] !== '') {
+                    while (isOnBoard(x, y) && boardState[x][y] !== '') {
+                        x += dx;
+                        y += dy;
+                        if (isOnBoard(x, y) && boardState[x][y] === currentPlayer) {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        function flipStones(row, col) {
+            var directions = [
+                [-1, -1], [-1, 0], [-1, 1],
+                [0, -1],           [0, 1],
+                [1, -1],  [1, 0],  [1, 1]
+            ];
+
+            for (var i = 0; i < directions.length; i++) {
+                var dx = directions[i][0];
+                var dy = directions[i][1];
+
+                var x = row + dx;
+                var y = col + dy;
+
+                if (isOnBoard(x, y) && boardState[x][y] !== currentPlayer && boardState[x][y] !== '') {
+                    var stonesToFlip = [];
+                    while (isOnBoard(x, y) && boardState[x][y] !== '') {
+                        stonesToFlip.push({ row: x, col: y });
+                        x += dx;
+                        y += dy;
+                        if (isOnBoard(x, y) && boardState[x][y] === currentPlayer) {
+                            for (var j = 0; j < stonesToFlip.length; j++) {
+                                var stoneRow = stonesToFlip[j].row;
+                                var stoneCol = stonesToFlip[j].col;
+                                boardState[stoneRow][stoneCol] = currentPlayer;
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        function isOnBoard(row, col) {
+            return row >= 0 && row < 8 && col >= 0 && col < 8;
+        }
+
+        function getValidMoves() {
+            var moves = [];
+
+            for (var i = 0; i < 8; i++) {
+                for (var j = 0; j < 8; j++) {
+                    if (isValidMove(i, j)) {
+                        moves.push({ row: i, col: j });
+                    }
+                }
+            }
+
+            return moves;
+        }
+
+        function highlightCells(cells) {
+            var board = document.querySelector('.board');
+
+            for (var i = 0; i < cells.length; i++) {
+                var row = cells[i].row;
+                var col = cells[i].col;
+
+                var cell = board.querySelector('[data-row="' + row + '"][data-col="' + col + '"]');
+                cell.style.backgroundColor = 'yellow';
+            }
+        }
+
+        function removeCellHighlights() {
+            var cells = document.querySelectorAll('.cell');
+            for (var i = 0; i < cells.length; i++) {
+                cells[i].style.backgroundColor = '#228B22';
+            }
+        }
+
+        function updateScore() {
+            var blackScore = 0;
+            var whiteScore = 0;
+
+            for (var i = 0; i < 8; i++) {
+                for (var j = 0; j < 8; j++) {
+                    if (boardState[i][j] === 'B') {
+                        blackScore++;
+                    } else if (boardState[i][j] === 'W') {
+                        whiteScore++;
+                    }
+                }
+            }
+
+            var scoreElement = document.getElementById('score');
+            scoreElement.innerHTML = 'Black: ' + blackScore + ', White: ' + whiteScore;
+        }
+
+        function updateTurn() {
+            var turnElement = document.getElementById('turn');
+            turnElement.innerHTML = 'Current Turn: ' + (currentPlayer === 'B' ? 'Black' : 'White');
+        }
+
+        function isGameOver() {
+            return getValidMoves().length === 0;
+        }
+
+        function getWinner() {
+            var blackScore = 0;
+            var whiteScore = 0;
+
+            for (var i = 0; i < 8; i++) {
+                for (var j = 0; j < 8; j++) {
+                    if (boardState[i][j] === 'B') {
+                        blackScore++;
+                    } else if (boardState[i][j] === 'W') {
+                        whiteScore++;
+                    }
+                }
+            }
+
+            if (blackScore > whiteScore) {
+                return 'Black';
+            } else if (whiteScore > blackScore) {
+                return 'White';
+            } else {
+                return 'Tie';
+            }
+        }
+
+        function showWinner(winner) {
+            var winnerElement = document.getElementById('winner');
+            if (winner === 'Tie') {
+                winnerElement.innerHTML = 'It\'s a tie!';
+            } else {
+                winnerElement.innerHTML = 'The winner is: ' + winner;
+            }
+        }
+
+        drawBoard();
+        updateScore();
+        updateTurn();
+    </script>
+</body>
+</html>
+
